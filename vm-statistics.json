@@ -1,5 +1,9 @@
 {
+    // UI Plugin 的名字，这个名字有id的作用，所以必须唯一
     "name": "vm-statistics",
+    // UI Plugin 的启动文件，这个文件主要是调用 UI Plugin API，来实现嵌入我们的页面，
+    // 所以在这个文件里面尽量不要有我们具体的页面代码
     "url": "plugin/vm-statistics/start.html",
+    // 具体的资源目录
     "resourcePath": "vm-statistics-resources"
 }
