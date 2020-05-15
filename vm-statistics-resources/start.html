@@ -5,23 +5,30 @@
 </head>
 <body>
 <script type='text/javascript'>
+    // 获取ovirt提供的API，由于UI Plugin是使用iframe实现的，所以这里的parent指向的是Webadmin所在的上下文。
     var api = parent.pluginApi('vm-statistics');
     var selectedVm = null;
     var sourceWindow;
 
+    // 定义一个唯一的dialog标准，类似于id。
     var dialogToken = 'vm-statistics-dialog';
+    // 这个跟 vm-statistics.json描述符文件中的url规则一致，它指向的就是 vm-statistics-resources目录下面的test.html文件
     var dialogUrl = 'plugin/vm-statistics/test.html';
 
     api.options({
+        // 配置postMessage域限制
         allowedMessageOrigins: ['*']
     });
 
     function init() {
+        // addMainTabActionButton 方法就能够实现在具体的列表页上方增加一个按钮，这里第一个参数VirtualMachine 表明是在虚机列表上方
+        // 第二个参数是按钮title，最后一个对象参数是options选项。
         api.addMainTabActionButton(
             'VirtualMachine', 
             '资源监控',
             {
                 isEnabled: function() {
+                    // 只有选中一条记录，并且选中的虚机是Up状态按钮才可用。
                     return arguments.length == 1 && arguments[0].status === 'Up';
                 },
                 onClick: function() {
@@ -32,6 +39,12 @@
     };
     
     var openDialog = function() {
+        /*
+            showDialog方法，第一个参数是Dialog的title，第二个类似于这个Dialog的id，
+            第三个参数最关键，它指向的就是我们自己实现的前端页面，我们怎么实现它，打开的Dialog就怎么显示。
+            后面的两个参数是 长度和宽度
+            最后一个是选项参数，属性名字基本上都非常直观，就不解释了。
+        */
         api.showDialog(selectedVm.name + ' 资源监控', dialogToken, dialogUrl, '800px', '860px',
             {
                 closeIconVisible: false, 
@@ -53,29 +66,32 @@
     };
 
 
-    // Register event handler functions for later invocation by UI plugin infrastructure
+    // 我们通过register方法来实现初始化和一些事件的绑定
     api.register({
         UiInit: function() {
             init();
         },
+        // 通过 VirtualMachineSelectionChange 事件，我们可以保存下当前选中的虚机
         VirtualMachineSelectionChange: function() {
             if (arguments.length == 1) {
-                // Single entity was selected, remember it
+                // 我们不考虑多选，所以仅仅保存选中一条时的虚机就可以了。
+                // selectedVm是我们定义的一个全局变量
                 selectedVm = arguments[0];
             } else {
-                // Otherwise, forget the entity
                 selectedVm = null;
             }
         },
+        // 通过注册MessageReceived 事件，我们可以接收到发送到启动文件的message信息。
         MessageReceived: function(data, _sourceWindow) {
             if (data === 'getSelectedVm') {
+                // 这个sourceWindow是一个全局变量，它指向我们自己实现的内容页面，我们之所以保存它，
+                // 是为了在关闭这个Dialog的时候，向它发送信息，让它关闭获取虚机信息的定时器。
                 sourceWindow = _sourceWindow;
                 sourceWindow.postMessage(selectedVm, '*');
             }
         },
     });
 
-    // Tell plugin infrastructure that we are good to go, expect UiInit callback
     api.ready();
 
 </script>

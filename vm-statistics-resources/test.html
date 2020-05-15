@@ -58,7 +58,9 @@
         function getStatistic(cb) {
             if(!selectedVm) return;
 
+            // 使用于start.html中相同的方式获得UI Plugin的API
             var api = parent.pluginApi('vm-statistics');
+            // 通过ssoToken() 获得认证token
             var ssoToken = api.ssoToken();
             var xhr = new XMLHttpRequest();
             xhr.onreadystatechange = function()
@@ -91,17 +93,21 @@
             }   
 
             xhr.open('GET', '/ovirt-engine/api/vms/' + selectedVm.id + '/statistics', true);
-            xhr.withCredentials = true; // for cross-site requests, ensure that auth information and cookies are included
-            xhr.setRequestHeader('Accept', 'application/json'); // control response format
-            xhr.setRequestHeader('Filter', 'false'); // control whether to filter results based on (WebAdmin) user's permissions
-            xhr.setRequestHeader('Prefer', 'persistent-auth'); // prevent closing REST API session after processing request
-            xhr.setRequestHeader('Authorization', 'Bearer ' + ssoToken); // Create HTTP session with SSO token, subsequent requests don't need this as the HTTP session is persistent.
+            xhr.withCredentials = true;
+            // 保留这些头信息
+            xhr.setRequestHeader('Accept', 'application/json');
+            xhr.setRequestHeader('Filter', 'false'); 
+            xhr.setRequestHeader('Prefer', 'persistent-auth');
+            xhr.setRequestHeader('Authorization', 'Bearer ' + ssoToken); 
             xhr.send(null);
         }
 
+        //向start.json请求选中的虚机
         parent.postMessage('getSelectedVm', '*');
         
+        // 定义message监听
         window.addEventListener("message", function(event) {
+            // 在开始时获取选中的虚机信息
             if (event.data !== 'close') {
                 selectedVm = event.data;
 
@@ -118,7 +124,7 @@
                         reloadChart(networkChart, networkHistory);
                     });
                 }, 1000 * 30);
-            } else {
+            } else { // 当Dialog关闭时，接收信息，清空定时器。
                 if(inter) {
                     clearInterval(inter);
                 }
