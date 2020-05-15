@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+</head>
+<body>
+    <div id="cpu_container" style="height: 250px;"></div>
+     <hr/>
+    <div id="memory_container" style="height: 250px;"></div>
+     <hr/>
+    <div id="network_container" style="height: 250px;"></div>
+
+    <script type="text/javascript" src="/ovirt-engine/webadmin/plugin/vm-statistics/js/echarts.min.js"></script>
+    <script type="text/javascript" src="/ovirt-engine/webadmin/plugin/vm-statistics/js/echarts-gl.min.js"></script>
+    <script type="text/javascript" src="/ovirt-engine/webadmin/plugin/vm-statistics/js/ecStat.min.js"></script>
+    <script type="text/javascript" src="/ovirt-engine/webadmin/plugin/vm-statistics/js/dataTool.min.js"></script>
+    <script type="text/javascript" src="/ovirt-engine/webadmin/plugin/vm-statistics/js/china.js"></script>
+    <script type="text/javascript" src="/ovirt-engine/webadmin/plugin/vm-statistics/js/world.js"></script>
+    <script type="text/javascript">
+        var selectedVm;
+        var cpuChart;
+        var memoryChart;
+        var networkChart;
+        var inter;
+
+        function reloadChart(chart, newData) {
+            var option = chart.getOption();
+            option.series[0].data = data;   
+            chart.setOption(option);   
+        }
+
+        function initChart(domId, historyData) {
+            var dom = document.getElementById(domId);
+            var myChart = echarts.init(dom);
+            var app = {};
+            option = null;
+            option = {
+                title: {
+                    text: domId.split('_')[0],
+                    left: 'center'
+                },
+                xAxis: {
+                    type: 'category',
+                },
+                yAxis: {
+                    type: 'value'
+                },
+                series: [{
+                    data: historyData,
+                    type: 'line'
+                }]
+            };
+            if (option && typeof option === "object") {
+                myChart.setOption(option, true);
+            }
+        }
+
+        function getStatistic(cb) {
+            if(!selectedVm) return;
+
+            var api = parent.pluginApi('vm-statistics');
+            var ssoToken = api.ssoToken();
+            var xhr = new XMLHttpRequest();
+            xhr.onreadystatechange = function()
+            {   
+                if (xhr.readyState === 4 && xhr.status === 200)
+                {   
+                    var res = JSON.parse(xhr.responseText);
+                    var statistic = res.statistic;
+                    var cpuHistory = [];
+                    var memoryHistory = [];
+                    var networkHistory = [];
+
+                    for(let stat of statistic) {
+                        if (stat.name === 'cpu.usage.history') {
+                            cpuHistory = stat.values.value.map(v => v.datum).reverse();
+                        }
+            
+                        if (stat.name === 'network.usage.history') {
+                            networkHistory = stat.values.value.map(v => v.datum).reverse();
+                        }
+
+                        if (stat.name === 'memory.usage.history') {
+                            memoryHistory = stat.values.value.map(v => v.datum).reverse();
+                        }
+                    
+                    }
+
+                    if (cb) cb(cpuHistory, memoryHistory, networkHistory);
+                }   
+            }   
+
+            xhr.open('GET', '/ovirt-engine/api/vms/' + selectedVm.id + '/statistics', true);
+            xhr.withCredentials = true; // for cross-site requests, ensure that auth information and cookies are included
+            xhr.setRequestHeader('Accept', 'application/json'); // control response format
+            xhr.setRequestHeader('Filter', 'false'); // control whether to filter results based on (WebAdmin) user's permissions
+            xhr.setRequestHeader('Prefer', 'persistent-auth'); // prevent closing REST API session after processing request
+            xhr.setRequestHeader('Authorization', 'Bearer ' + ssoToken); // Create HTTP session with SSO token, subsequent requests don't need this as the HTTP session is persistent.
+            xhr.send(null);
+        }
+
+        parent.postMessage('getSelectedVm', '*');
+        
+        window.addEventListener("message", function(event) {
+            if (event.data !== 'close') {
+                selectedVm = event.data;
+
+                getStatistic(function(cpuHistory, memoryHistory, networkHistory) {
+                    initChart('cpu_container', cpuHistory);            
+                    initChart('memory_container', memoryHistory);            
+                    initChart('network_container', networkHistory);            
+                });
+
+                inter = setInterval(() => {
+                    getStatistic(function(cpuHistory, memoryHistory, networkHistory) {
+                        reloadChart(cpuChart, cpuHistory);
+                        reloadChart(memoryChart, memoryHistory);
+                        reloadChart(networkChart, networkHistory);
+                    });
+                }, 1000 * 30);
+            } else {
+                if(inter) {
+                    clearInterval(inter);
+                }
+            }
+        }, false);
+    </script>
+</body>
+</html>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

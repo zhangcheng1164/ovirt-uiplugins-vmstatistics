@@ -1,0 +1,83 @@
+<!doctype html>
+<html>
+<head>
+    <meta charset="utf-8">
+</head>
+<body>
+<script type='text/javascript'>
+    var api = parent.pluginApi('vm-statistics');
+    var selectedVm = null;
+    var sourceWindow;
+
+    var dialogToken = 'vm-statistics-dialog';
+    var dialogUrl = 'plugin/vm-statistics/test.html';
+
+    api.options({
+        allowedMessageOrigins: ['*']
+    });
+
+    function init() {
+        api.addMainTabActionButton(
+            'VirtualMachine', 
+            '资源监控',
+            {
+                isEnabled: function() {
+                    return arguments.length == 1 && arguments[0].status === 'Up';
+                },
+                onClick: function() {
+                    openDialog();
+                },
+                // location: 'OnlyFromContext' // Button available only from context menu
+            });
+    };
+    
+    var openDialog = function() {
+        api.showDialog(selectedVm.name + ' 资源监控', dialogToken, dialogUrl, '800px', '860px',
+            {
+                closeIconVisible: false, 
+                closeOnEscKey: false, 
+                resizeEnabled: true, // Allow dialog resizing
+                buttons:
+                [
+                    {
+                        label: '关闭',
+                        onClick: closeDialog
+                    }
+                ]
+            });
+    };
+
+    function closeDialog() {
+       api.closeDialog(dialogToken);
+       sourceWindow.postMessage('close', '*');
+    };
+
+
+    // Register event handler functions for later invocation by UI plugin infrastructure
+    api.register({
+        UiInit: function() {
+            init();
+        },
+        VirtualMachineSelectionChange: function() {
+            if (arguments.length == 1) {
+                // Single entity was selected, remember it
+                selectedVm = arguments[0];
+            } else {
+                // Otherwise, forget the entity
+                selectedVm = null;
+            }
+        },
+        MessageReceived: function(data, _sourceWindow) {
+            if (data === 'getSelectedVm') {
+                sourceWindow = _sourceWindow;
+                sourceWindow.postMessage(selectedVm, '*');
+            }
+        },
+    });
+
+    // Tell plugin infrastructure that we are good to go, expect UiInit callback
+    api.ready();
+
+</script>
+</body>
+</html>
